@@ -1,7 +1,7 @@
 mongo-api-php
 =============
 
-PHP class to use the Mongolab.com API
+PHP class to use the <a href="http://mongolab.com">Mongolab.com</a> API
 
 Find the blog post talking about it here for example:
 
