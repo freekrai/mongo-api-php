@@ -3,11 +3,34 @@ class MongoAPI{
 	private $db;
 	private $col;
 	private $apiKey;
+	private $schema;
 
-	public function __construct($db,$col,$apiKey){
+	public function __construct($db,$apiKey,$col=''){
 		$this->db = $db;
 		$this->col = $col;
 		$this->apiKey = $apiKey;
+	}
+
+	public function __destruct(){
+		
+	}
+
+	public function drop(){
+		
+	}
+
+	public function collection($col){
+		$this->col = $col;
+		return $this;
+	}
+	
+	public function __get($col){
+		$col = strtolower( $col );
+		return $this->collection($col);
+	}
+
+	public function setSchema($schema){
+		$this->schema = $schema;
 	}
 
 	public function get($key=''){
@@ -20,6 +43,10 @@ class MongoAPI{
 		return json_decode( $ret,true );
 	}
 
+	public function find( $query ){
+		return $this->query( $query );
+	}
+
 	public function query( $query ){
 		$q = json_encode( $query );
 		$q = urlencode( $q );
@@ -28,7 +55,19 @@ class MongoAPI{
 		return json_decode( $ret,true );
 	}
 
-	public function insert($row){
+	public function insert($vars){
+		if( isset($this->schema) ){
+			$row = array();
+			foreach( $this->schema as $k=>$type ){
+				if( isset($vars[$k]) ){
+					$row[$k] = $vars[$k];
+				}else{
+					$row[$k] = '';	
+				}
+			}
+		}else{
+			$row = $vars;
+		}
 		$url = 'https://api.mongolab.com/api/1/databases/'.$this->db.'/collections/'.$this->col.'/?apiKey='.$this->apiKey;
 		$row = json_encode( $row );
 		$ret = $this->post_query($url,$row);
@@ -37,7 +76,31 @@ class MongoAPI{
 		return $id;
 	}
 
-	public function update($row,$key){
+	public function update($where,$vars){
+		$res = $this->find( $where );
+		$ret = false;
+		if( count($res) ){
+			foreach($res as $row){
+				$key = $row['_id']['$oid'];
+				$ret = $this->update($vars,$key);
+			}
+		}
+		return $ret;
+	}
+
+	public function updatebyid($vars,$key){
+		if( isset($this->schema) ){
+			$row = array();
+			foreach( $this->schema as $k=>$type ){
+				if( isset($vars[$k]) ){
+					$row[$k] = $vars[$k];
+				}else{
+					$row[$k] = '';	
+				}
+			}
+		}else{
+			$row = $vars;
+		}
 		$url = 'https://api.mongolab.com/api/1/databases/'.$this->db.'/collections/'.$this->col.'/'.$key.'?apiKey='.$this->apiKey;
 		$row = json_encode( $row );
 		$ret = $this->put_query($url,$row);
@@ -50,6 +113,8 @@ class MongoAPI{
 		$ret = $this->del_query($url);
 		return json_decode( $ret,true );
 	}
+	
+	/*	private functions for calling the API.. Change these at your own risk	*/
 
 	private function get_query($url){
 		$ch = curl_init($url);
